@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { useAuthStore } from '../store/authStore';
-import { useHasRole } from '../components/RoleGuard';
 
 interface NavItem {
   path: string;
@@ -92,7 +91,6 @@ function MainLayout({ children }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
-const isAdminOrHR = useHasRole(['ADMIN', 'HR_MANAGER']);
 
   const userRole = user?.role?.code ?? '';
   const visibleItems = navItems.filter((item) => item.roles.includes(userRole));
