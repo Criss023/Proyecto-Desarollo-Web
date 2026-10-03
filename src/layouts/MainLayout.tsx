@@ -92,7 +92,7 @@ function MainLayout({ children }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
-  const isAdminOrHR = useHasRole(['ADMIN', 'HR_MANAGER']);
+const isAdminOrHR = useHasRole(['ADMIN', 'HR_MANAGER']);
 
   const userRole = user?.role?.code ?? '';
   const visibleItems = navItems.filter((item) => item.roles.includes(userRole));
