@@ -1,3 +1,5 @@
+import EmployeesPage from './pages/EmployeesPage';
+import RoleGuard from './components/RoleGuard';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
@@ -46,6 +48,18 @@ function App() {
           path="*"
           element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
         />
+        <Route
+  path="/empleados"
+  element={
+    <ProtectedRoute>
+      <MainLayout>
+        <RoleGuard allowedRoles={['ADMIN', 'HR_MANAGER']}>
+          <EmployeesPage />
+        </RoleGuard>
+      </MainLayout>
+    </ProtectedRoute>
+  }
+/>
       </Routes>
     </BrowserRouter>
   );
