@@ -2,7 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
 import ProtectedRoute from './components/ProtectedRoute';
+import MainLayout from './layouts/MainLayout';
 import LoginPage from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
 
 function App() {
   const { isAuthenticated, refreshSession, user } = useAuthStore();
@@ -30,9 +32,9 @@ function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <main id="main-content">
-                <div className="p-8 text-slate-600">Dashboard - proximamente</div>
-              </main>
+              <MainLayout>
+                <DashboardPage />
+              </MainLayout>
             </ProtectedRoute>
           }
         />
