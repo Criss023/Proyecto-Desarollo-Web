@@ -101,11 +101,8 @@ export const useAuthStore = create<AuthState>()(
 // Interceptor: adjunta el token a cada peticion autenticada
 apiClient.interceptors.request.use((config) => {
   try {
-    const stored = localStorage.getItem('auth-storage');
-    if (stored) {
-      const token = JSON.parse(stored)?.state?.user?.accessToken;
-      if (token) config.headers.Authorization = `Bearer ${token}`;
-    }
+    const token = useAuthStore.getState().user?.accessToken;
+    if (token) config.headers.Authorization = `Bearer ${token}`;
   } catch {
     // continua sin token
   }
