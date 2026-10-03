@@ -10,8 +10,13 @@ interface LoginResponseData {
     isActive: boolean;
     role: { code: string; name: string };
   };
-  accessToken: string;
-  refreshToken: string;
+  tokens: {
+    accessToken: string;
+    refreshToken: string;
+    tokenType: string;
+    expiresIn: number;
+    refreshExpiresIn: number;
+  };
 }
 
 interface RefreshResponseData {
@@ -21,13 +26,13 @@ interface RefreshResponseData {
 
 export const authService = {
   login: async (credentials: LoginCredentials): Promise<AuthUser> => {
-    const res = await apiClient.post<ApiEnvelope<LoginResponseData>>(
-      '/api/v1/auth/login',
-      credentials
-    );
-    const { user, accessToken, refreshToken } = res.data.data;
-    return { ...user, accessToken, refreshToken };
-  },
+  const res = await apiClient.post<ApiEnvelope<LoginResponseData>>(
+    '/api/v1/auth/login',
+    credentials
+  );
+  const { user, tokens } = res.data.data;
+  return { ...user, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
+},
 
   refresh: async (refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> => {
     const res = await apiClient.post<ApiEnvelope<RefreshResponseData>>(
