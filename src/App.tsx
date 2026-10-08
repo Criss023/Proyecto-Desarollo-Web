@@ -1,12 +1,13 @@
-import EmployeesPage from './pages/EmployeesPage';
-import RoleGuard from './components/RoleGuard';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
 import ProtectedRoute from './components/ProtectedRoute';
+import RoleGuard from './components/RoleGuard';
 import MainLayout from './layouts/MainLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import EmployeesPage from './pages/EmployeesPage';
+import EmployeeDocumentsPage from './pages/EmployeeDocumentsPage';
 
 function App() {
   const { isAuthenticated, refreshSession, user } = useAuthStore();
@@ -41,6 +42,30 @@ function App() {
           }
         />
         <Route
+          path="/empleados"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <RoleGuard allowedRoles={['ADMIN', 'HR_MANAGER']}>
+                  <EmployeesPage />
+                </RoleGuard>
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/empleados/:id/documentos"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <RoleGuard allowedRoles={['ADMIN', 'HR_MANAGER']}>
+                  <EmployeeDocumentsPage />
+                </RoleGuard>
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/"
           element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
         />
@@ -48,18 +73,6 @@ function App() {
           path="*"
           element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
         />
-        <Route
-  path="/empleados"
-  element={
-    <ProtectedRoute>
-      <MainLayout>
-        <RoleGuard allowedRoles={['ADMIN', 'HR_MANAGER']}>
-          <EmployeesPage />
-        </RoleGuard>
-      </MainLayout>
-    </ProtectedRoute>
-  }
-/>
       </Routes>
     </BrowserRouter>
   );
