@@ -8,6 +8,8 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import EmployeesPage from './pages/EmployeesPage';
 import EmployeeDocumentsPage from './pages/EmployeeDocumentsPage';
+import DocumentTypesPage from './pages/DocumentTypesPage';
+import AlertsPage from './pages/AlertsPage';
 
 function App() {
   const { isAuthenticated, refreshSession, user } = useAuthStore();
@@ -60,6 +62,30 @@ function App() {
               <MainLayout>
                 <RoleGuard allowedRoles={['ADMIN', 'HR_MANAGER']}>
                   <EmployeeDocumentsPage />
+                </RoleGuard>
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tipos-documento"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <RoleGuard allowedRoles={['ADMIN', 'HR_MANAGER']}>
+                  <DocumentTypesPage />
+                </RoleGuard>
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/alertas"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <RoleGuard allowedRoles={['ADMIN', 'HR_MANAGER']}>
+                  <AlertsPage />
                 </RoleGuard>
               </MainLayout>
             </ProtectedRoute>
