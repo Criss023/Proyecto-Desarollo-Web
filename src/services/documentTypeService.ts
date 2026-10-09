@@ -2,25 +2,31 @@ import { apiClient } from './apiClient';
 
 export interface DocumentType {
   id: string;
+  code: string;
   name: string;
   description?: string;
   isRequired: boolean;
-  requiresExpiration: boolean;
-  allowedMimeTypes: string[];
   isActive: boolean;
 }
 
-export interface DocumentTypeFilters {
-  page?: number;
-  limit?: number;
-  includeInactive?: boolean;
+export interface CreateDocumentTypeData {
+  code: string;
+  name: string;
+  description?: string;
+  isRequired?: boolean;
+  isActive?: boolean;
+}
+
+export interface UpdateDocumentTypeData {
+  name?: string;
+  description?: string;
+  isRequired?: boolean;
 }
 
 export const documentTypeService = {
-  list: async (filters: DocumentTypeFilters = {}) => {
+  list: async (filters: { page?: number; includeInactive?: boolean } = {}) => {
     const params: Record<string, string> = {};
     if (filters.page) params.page = String(filters.page);
-    if (filters.limit) params.limit = String(filters.limit);
     if (filters.includeInactive !== undefined)
       params.includeInactive = String(filters.includeInactive);
 
@@ -33,12 +39,12 @@ export const documentTypeService = {
     return res.data.data;
   },
 
-  create: async (data: Omit<DocumentType, 'id' | 'isActive'>) => {
+  create: async (data: CreateDocumentTypeData) => {
     const res = await apiClient.post('/api/v1/document-types', data);
     return res.data.data;
   },
 
-  update: async (id: string, data: Partial<Omit<DocumentType, 'id' | 'isActive'>>) => {
+  update: async (id: string, data: UpdateDocumentTypeData) => {
     const res = await apiClient.patch(`/api/v1/document-types/${id}`, data);
     return res.data.data;
   },
