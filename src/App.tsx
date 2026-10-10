@@ -11,6 +11,7 @@ import EmployeeDocumentsPage from './pages/EmployeeDocumentsPage';
 import DocumentTypesPage from './pages/DocumentTypesPage';
 import AlertsPage from './pages/AlertsPage';
 import CompliancePage from './pages/CompliancePage';
+import MyProfilePage from './pages/MyProfilePage';
 
 function App() {
   const { isAuthenticated, refreshSession, user } = useAuthStore();
@@ -99,6 +100,18 @@ function App() {
               <MainLayout>
                 <RoleGuard allowedRoles={['ADMIN', 'HR_MANAGER']}>
                   <CompliancePage />
+                </RoleGuard>
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mi-perfil"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <RoleGuard allowedRoles={['EMPLOYEE']}>
+                  <MyProfilePage />
                 </RoleGuard>
               </MainLayout>
             </ProtectedRoute>
