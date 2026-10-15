@@ -38,16 +38,16 @@ interface DashboardData {
 
 interface SelfServiceProfile {
   id: string;
-  employeeCode: string;
+  employeeCode?: string;
   firstName: string;
   lastName: string;
   email: string;
   phone?: string;
-  position: { id: string; name: string };
-  department: { id: string; name: string };
-  branch: { id: string; name: string };
+  position?: { id: string; name: string };
+  department?: { id: string; name: string };
+  branch?: { id: string; name: string };
   status: string;
-  hireDate: string;
+  hireDate?: string;
 }
 
 function StatCard({
@@ -240,19 +240,19 @@ function EmployeeHome() {
 
   if (!data) return null;
 
-  const fields = [
-    { label: 'Codigo', value: data.employeeCode },
-    { label: 'Correo', value: data.email },
-    { label: 'Telefono', value: data.phone ?? 'No registrado' },
-    { label: 'Puesto', value: data.position.name },
-    { label: 'Departamento', value: data.department.name },
-    { label: 'Sede', value: data.branch.name },
-    { label: 'Estado', value: data.status },
-    {
-      label: 'Fecha de ingreso',
-      value: new Date(data.hireDate).toLocaleDateString('es-GT'),
-    },
-  ];
+ const fields = [
+  { label: 'Codigo', value: data.employeeCode ?? 'No asignado' },
+  { label: 'Correo', value: data.email },
+  { label: 'Telefono', value: data.phone ?? 'No registrado' },
+  { label: 'Puesto', value: data.position?.name ?? 'No asignado' },
+  { label: 'Departamento', value: data.department?.name ?? 'No asignado' },
+  { label: 'Sede', value: data.branch?.name ?? 'No asignada' },
+  { label: 'Estado', value: data.status },
+  {
+    label: 'Fecha de ingreso',
+    value: data.hireDate ? new Date(data.hireDate).toLocaleDateString('es-GT') : 'No registrada',
+  },
+];
 
   return (
     <div className="max-w-2xl space-y-4">
@@ -267,7 +267,7 @@ function EmployeeHome() {
             <h3 className="text-base font-semibold text-slate-900">
               {data.firstName} {data.lastName}
             </h3>
-            <p className="text-sm text-slate-400">{data.position.name}</p>
+<p className="text-sm text-slate-400">{data.position?.name ?? 'Sin puesto'}</p>
           </div>
         </div>
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
