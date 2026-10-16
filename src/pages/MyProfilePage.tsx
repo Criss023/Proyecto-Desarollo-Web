@@ -40,7 +40,7 @@ function MyProfilePage() {
 
   const updateMutation = useMutation({
     mutationFn: (data: UpdateContactData) => selfServiceService.updateContact(data),
-    onSuccess: (updated) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['self-service-profile'] });
       setEditMode(false);
       setSuccessMsg('Datos de contacto actualizados correctamente.');

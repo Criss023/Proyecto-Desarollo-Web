@@ -103,12 +103,6 @@ function DocumentTypesPage() {
     }
   }
 
-  const SEVERITY_COLORS: Record<string, string> = {
-    CRITICAL: 'badge-red',
-    HIGH: 'badge-yellow',
-    WARNING: 'badge-blue',
-  };
-
   return (
     <div>
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
