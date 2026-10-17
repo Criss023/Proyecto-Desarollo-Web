@@ -19,19 +19,71 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const STATUS_OPTIONS = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'RETIRED'];
-
 const PAGE_SIZE = 10;
-
-function SortIcon({ field, sortBy, sortOrder }: { field: string; sortBy: string; sortOrder: 'asc' | 'desc' }) {
-  if (sortBy !== field) return <span className="text-slate-300 ml-1">↕</span>;
-  return <span className="text-primary-500 ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>;
-}
 
 const EMPTY_FORM = {
   dpi: '', firstName: '', middleName: '', lastName: '', secondLastName: '',
   birthDate: '', address: '', phone: '', email: '', baseSalary: '',
   hireDate: '', departmentId: '', positionId: '', userId: '',
 };
+
+function validateForm(form: typeof EMPTY_FORM): Record<string, string> {
+  const errors: Record<string, string> = {};
+
+  if (!form.dpi) {
+    errors.dpi = 'El DPI es obligatorio.';
+  } else if (!/^\d{13}$/.test(form.dpi)) {
+    errors.dpi = 'El DPI debe tener exactamente 13 dígitos numéricos.';
+  }
+
+  if (!form.firstName.trim()) errors.firstName = 'El primer nombre es obligatorio.';
+  if (!form.lastName.trim())  errors.lastName  = 'El primer apellido es obligatorio.';
+
+  if (!form.email) {
+    errors.email = 'El correo es obligatorio.';
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    errors.email = 'El correo no tiene un formato válido.';
+  }
+
+  if (form.phone && !/^\d{8}$/.test(form.phone)) {
+    errors.phone = 'El teléfono debe tener 8 dígitos numéricos.';
+  }
+
+  if (!form.baseSalary) {
+    errors.baseSalary = 'El salario es obligatorio.';
+  } else if (isNaN(Number(form.baseSalary)) || Number(form.baseSalary) <= 0) {
+    errors.baseSalary = 'El salario debe ser un número mayor a 0.';
+  }
+
+  if (!form.birthDate) {
+    errors.birthDate = 'La fecha de nacimiento es obligatoria.';
+  } else {
+    const birth = new Date(form.birthDate);
+    const minAge = new Date();
+    minAge.setFullYear(minAge.getFullYear() - 18);
+    if (birth > minAge) errors.birthDate = 'El empleado debe tener al menos 18 años.';
+  }
+
+  if (!form.hireDate) {
+    errors.hireDate = 'La fecha de contratación es obligatoria.';
+  } else {
+    const hire    = new Date(form.hireDate);
+    const today   = new Date(); today.setHours(23, 59, 59);
+    const minHire = new Date(); minHire.setFullYear(minHire.getFullYear() - 50);
+    if (hire > today)    errors.hireDate = 'La fecha de contratación no puede ser futura.';
+    else if (hire < minHire) errors.hireDate = 'La fecha no puede ser de hace más de 50 años.';
+  }
+
+  if (!form.departmentId) errors.departmentId = 'Selecciona un departamento.';
+  if (!form.positionId)   errors.positionId   = 'Selecciona un puesto.';
+
+  return errors;
+}
+
+function SortIcon({ field, sortBy, sortOrder }: { field: string; sortBy: string; sortOrder: 'asc' | 'desc' }) {
+  if (sortBy !== field) return <span className="text-slate-300 ml-1">↕</span>;
+  return <span className="text-primary-500 ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>;
+}
 
 function EmployeesPage() {
   const { isAuthenticated, user } = useAuthStore();
@@ -44,13 +96,14 @@ function EmployeesPage() {
   const [sortBy, setSortBy]       = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  const [showCreate, setShowCreate]       = useState(false);
-  const [form, setForm]                   = useState(EMPTY_FORM);
-  const [formError, setFormError]         = useState<string | null>(null);
+  const [showCreate, setShowCreate]   = useState(false);
+  const [form, setForm]               = useState(EMPTY_FORM);
+  const [formError, setFormError]     = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const [statusModal, setStatusModal]     = useState<{ id: string; name: string; current: string } | null>(null);
-  const [newStatus, setNewStatus]         = useState('');
-  const [statusReason, setStatusReason]   = useState('');
+  const [statusModal, setStatusModal]   = useState<{ id: string; name: string; current: string } | null>(null);
+  const [newStatus, setNewStatus]       = useState('');
+  const [statusReason, setStatusReason] = useState('');
 
   const queryEnabled = isAuthenticated && !!user?.accessToken;
 
@@ -94,10 +147,16 @@ function EmployeesPage() {
     resetPage();
   }
 
-  // Posiciones filtradas por departamento seleccionado
   const filteredPositions = catalogs?.positions.filter(
     p => !form.departmentId || p.departmentId === form.departmentId
   ) ?? [];
+
+  const closeCreate = () => {
+    setShowCreate(false);
+    setForm(EMPTY_FORM);
+    setFormError(null);
+    setFieldErrors({});
+  };
 
   const createMutation = useMutation({
     mutationFn: () => employeeService.create({
@@ -118,12 +177,10 @@ function EmployeesPage() {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
-      setShowCreate(false);
-      setForm(EMPTY_FORM);
-      setFormError(null);
+      closeCreate();
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
-      setFormError(err.response?.data?.message ?? 'Error al crear el empleado.');
+      setFormError(err.response?.data?.message ?? 'Error al crear el empleado. Intenta nuevamente.');
     },
   });
 
@@ -138,17 +195,18 @@ function EmployeesPage() {
   });
 
   const handleCreate = () => {
-    if (!form.dpi || !form.firstName || !form.lastName || !form.email ||
-        !form.baseSalary || !form.hireDate || !form.birthDate ||
-        !form.departmentId || !form.positionId) {
-      setFormError('Completa todos los campos obligatorios.');
+    const errors = validateForm(form);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setFormError('Corrige los errores antes de continuar.');
       return;
     }
+    setFieldErrors({});
     setFormError(null);
     createMutation.mutate();
   };
 
-  const field = (id: keyof typeof form, label: string, type = 'text', required = false) => (
+  const inputField = (id: keyof typeof form, label: string, type = 'text', required = false) => (
     <div>
       <label htmlFor={id} className="label">
         {label}{required && <span className="text-red-500 ml-1">*</span>}
@@ -157,15 +215,23 @@ function EmployeesPage() {
         id={id}
         type={type}
         value={form[id]}
-        onChange={e => setForm(f => ({ ...f, [id]: e.target.value }))}
-        className="input-field"
+        onChange={e => {
+          setForm(f => ({ ...f, [id]: e.target.value }));
+          if (fieldErrors[id]) setFieldErrors(fe => ({ ...fe, [id]: '' }));
+        }}
+        className={`input-field ${fieldErrors[id] ? 'border-red-400 focus:ring-red-400' : ''}`}
         aria-required={required}
+        aria-describedby={fieldErrors[id] ? `${id}-error` : undefined}
       />
+      {fieldErrors[id] && (
+        <p id={`${id}-error`} className="error-message mt-1" role="alert">{fieldErrors[id]}</p>
+      )}
     </div>
   );
 
   return (
     <div>
+      {/* Header */}
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Empleados</h2>
@@ -178,6 +244,7 @@ function EmployeesPage() {
         </button>
       </div>
 
+      {/* Filtros */}
       <div className="card p-4 mb-5 flex flex-wrap gap-3 items-end">
         <div className="flex-1 min-w-48">
           <label htmlFor="search" className="label">Buscar</label>
@@ -205,6 +272,7 @@ function EmployeesPage() {
         )}
       </div>
 
+      {/* Error */}
       {isError && (
         <div className="card p-5 border-l-4 border-red-400 mb-5" role="alert">
           <p className="text-sm font-medium text-red-700 mb-2">No se pudieron cargar los empleados</p>
@@ -212,6 +280,7 @@ function EmployeesPage() {
         </div>
       )}
 
+      {/* Loading */}
       {isLoading && (
         <div className="flex items-center justify-center py-20" aria-busy="true">
           <svg className="animate-spin w-5 h-5 mr-2 text-slate-400" fill="none" viewBox="0 0 24 24">
@@ -222,12 +291,14 @@ function EmployeesPage() {
         </div>
       )}
 
+      {/* Vacío */}
       {!isLoading && !isError && items.length === 0 && (
         <div className="card p-12 text-center" role="status">
           <p className="text-slate-400 text-sm">No se encontraron empleados con los filtros aplicados.</p>
         </div>
       )}
 
+      {/* Tabla */}
       {!isLoading && !isError && items.length > 0 && (
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
@@ -268,9 +339,12 @@ function EmployeesPage() {
                           Expediente
                         </a>
                         <button
-                          onClick={() => { setStatusModal({ id: emp.id, name: `${emp.firstName} ${emp.lastName}`, current: emp.status }); setNewStatus(emp.status); setStatusReason(''); }}
-                          className="text-slate-500 hover:text-slate-800 hover:underline text-sm focus:outline-none"
-                          aria-label={`Cambiar estado de ${emp.firstName} ${emp.lastName}`}>
+                          onClick={() => {
+                            setStatusModal({ id: emp.id, name: `${emp.firstName} ${emp.lastName}`, current: emp.status });
+                            setNewStatus(emp.status);
+                            setStatusReason('');
+                          }}
+                          className="text-slate-500 hover:text-slate-800 hover:underline text-sm focus:outline-none">
                           Estado
                         </button>
                       </div>
@@ -305,12 +379,12 @@ function EmployeesPage() {
 
       {/* Modal crear empleado */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 z-40 flex items-start justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Nuevo empleado">
+        <div className="fixed inset-0 bg-black bg-opacity-40 z-40 flex items-start justify-center p-4 overflow-y-auto"
+          role="dialog" aria-modal="true" aria-label="Nuevo empleado">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl my-8">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="font-semibold text-slate-900">Nuevo empleado</h3>
-              <button onClick={() => { setShowCreate(false); setForm(EMPTY_FORM); setFormError(null); }}
-                className="text-slate-400 hover:text-slate-600 focus:outline-none" aria-label="Cerrar">
+              <button onClick={closeCreate} className="text-slate-400 hover:text-slate-600 focus:outline-none" aria-label="Cerrar">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -323,50 +397,72 @@ function EmployeesPage() {
                   <p className="text-sm text-red-700">{formError}</p>
                 </div>
               )}
-
               <p className="text-xs text-slate-400">Los campos con <span className="text-red-500">*</span> son obligatorios.</p>
 
               <fieldset>
                 <legend className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Datos personales</legend>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {field('dpi', 'DPI', 'text', true)}
-                  {field('birthDate', 'Fecha de nacimiento', 'date', true)}
-                  {field('firstName', 'Primer nombre', 'text', true)}
-                  {field('middleName', 'Segundo nombre')}
-                  {field('lastName', 'Primer apellido', 'text', true)}
-                  {field('secondLastName', 'Segundo apellido')}
-                  {field('phone', 'Teléfono')}
-                  {field('address', 'Dirección')}
+                  {inputField('dpi', 'DPI', 'text', true)}
+                  {inputField('birthDate', 'Fecha de nacimiento', 'date', true)}
+                  {inputField('firstName', 'Primer nombre', 'text', true)}
+                  {inputField('middleName', 'Segundo nombre')}
+                  {inputField('lastName', 'Primer apellido', 'text', true)}
+                  {inputField('secondLastName', 'Segundo apellido')}
+                  {inputField('phone', 'Teléfono (8 dígitos)')}
+                  {inputField('address', 'Dirección')}
                 </div>
               </fieldset>
 
               <fieldset>
                 <legend className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Datos laborales</legend>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {field('email', 'Correo electrónico', 'email', true)}
-                  {field('baseSalary', 'Salario base', 'text', true)}
-                  {field('hireDate', 'Fecha de contratación', 'date', true)}
+                  {inputField('email', 'Correo electrónico', 'email', true)}
+                  {inputField('baseSalary', 'Salario base (Q)', 'text', true)}
+                  {inputField('hireDate', 'Fecha de contratación', 'date', true)}
+
                   <div>
-                    <label htmlFor="dept-create" className="label">Departamento <span className="text-red-500">*</span></label>
+                    <label htmlFor="dept-create" className="label">
+                      Departamento <span className="text-red-500">*</span>
+                    </label>
                     <select id="dept-create" value={form.departmentId}
-                      onChange={e => setForm(f => ({ ...f, departmentId: e.target.value, positionId: '' }))}
-                      className="input-field" aria-required="true">
+                      onChange={e => {
+                        setForm(f => ({ ...f, departmentId: e.target.value, positionId: '' }));
+                        if (fieldErrors.departmentId) setFieldErrors(fe => ({ ...fe, departmentId: '' }));
+                      }}
+                      className={`input-field ${fieldErrors.departmentId ? 'border-red-400' : ''}`}
+                      aria-required="true">
                       <option value="">Selecciona...</option>
                       {catalogs?.departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
+                    {fieldErrors.departmentId && (
+                      <p className="error-message mt-1" role="alert">{fieldErrors.departmentId}</p>
+                    )}
                   </div>
+
                   <div>
-                    <label htmlFor="pos-create" className="label">Puesto <span className="text-red-500">*</span></label>
+                    <label htmlFor="pos-create" className="label">
+                      Puesto <span className="text-red-500">*</span>
+                    </label>
                     <select id="pos-create" value={form.positionId}
-                      onChange={e => setForm(f => ({ ...f, positionId: e.target.value }))}
-                      className="input-field" aria-required="true" disabled={!form.departmentId}>
+                      onChange={e => {
+                        setForm(f => ({ ...f, positionId: e.target.value }));
+                        if (fieldErrors.positionId) setFieldErrors(fe => ({ ...fe, positionId: '' }));
+                      }}
+                      className={`input-field ${fieldErrors.positionId ? 'border-red-400' : ''}`}
+                      aria-required="true"
+                      disabled={!form.departmentId}>
                       <option value="">Selecciona...</option>
                       {filteredPositions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
+                    {fieldErrors.positionId && (
+                      <p className="error-message mt-1" role="alert">{fieldErrors.positionId}</p>
+                    )}
                   </div>
-                  <div>
+
+                  <div className="sm:col-span-2">
                     <label htmlFor="user-create" className="label">
-                      Usuario del sistema <span className="text-xs text-slate-400 font-normal">(opcional)</span>
+                      Usuario del sistema{' '}
+                      <span className="text-xs text-slate-400 font-normal">(opcional)</span>
                     </label>
                     <select id="user-create" value={form.userId}
                       onChange={e => setForm(f => ({ ...f, userId: e.target.value }))}
@@ -382,8 +478,7 @@ function EmployeesPage() {
             </div>
 
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100">
-              <button onClick={() => { setShowCreate(false); setForm(EMPTY_FORM); setFormError(null); }}
-                disabled={createMutation.isPending} className="btn-secondary">
+              <button onClick={closeCreate} disabled={createMutation.isPending} className="btn-secondary">
                 Cancelar
               </button>
               <button onClick={handleCreate} disabled={createMutation.isPending} className="btn-primary min-w-24">
@@ -396,7 +491,8 @@ function EmployeesPage() {
 
       {/* Modal cambiar estado */}
       {statusModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 z-40 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Cambiar estado">
+        <div className="fixed inset-0 bg-black bg-opacity-40 z-40 flex items-center justify-center p-4"
+          role="dialog" aria-modal="true" aria-label="Cambiar estado">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="font-semibold text-slate-900">Cambiar estado</h3>
@@ -430,11 +526,13 @@ function EmployeesPage() {
                   className="input-field" />
               </div>
               {statusMutation.isError && (
-                <p className="text-sm text-red-600">Error al cambiar el estado. Intenta nuevamente.</p>
+                <p className="text-sm text-red-600" role="alert">Error al cambiar el estado. Intenta nuevamente.</p>
               )}
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100">
-              <button onClick={() => setStatusModal(null)} disabled={statusMutation.isPending} className="btn-secondary">Cancelar</button>
+              <button onClick={() => setStatusModal(null)} disabled={statusMutation.isPending} className="btn-secondary">
+                Cancelar
+              </button>
               <button onClick={() => statusMutation.mutate()}
                 disabled={statusMutation.isPending || newStatus === statusModal.current}
                 className="btn-primary min-w-24">

@@ -31,6 +31,14 @@ export interface EmployeeFilters {
   sortOrder?: 'asc' | 'desc';
 }
 
+export interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+
 export const employeeService = {
   list: async (filters: EmployeeFilters = {}) => {
     const params: Record<string, string> = {};
@@ -49,6 +57,14 @@ export const employeeService = {
     return res.data.data;
   },
 
+  listUsers: async () => {
+  const res = await apiClient.get<ApiEnvelope<PaginatedResult<User>>>(
+    '/api/v1/users',
+    { params: { limit: 100 } }
+  );
+  return res.data.data.items;
+},
+
   getById: async (id: string) => {
     const res = await apiClient.get<ApiEnvelope<Employee>>(
       `/api/v1/employees/${id}`
@@ -62,4 +78,35 @@ export const employeeService = {
     );
     return res.data.data;
   },
+
+  create: async (data: {
+  dpi: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  secondLastName?: string;
+  birthDate: string;
+  address?: string;
+  phone?: string;
+  email: string;
+  baseSalary: string;
+  hireDate: string;
+  departmentId: string;
+  positionId: string;
+  userId?: string;
+}) => {
+  const res = await apiClient.post<ApiEnvelope<Employee>>(
+    '/api/v1/employees',
+    data
+  );
+  return res.data.data;
+},
+
+changeStatus: async (id: string, status: string, reason?: string) => {
+  const res = await apiClient.patch<ApiEnvelope<Employee>>(
+    `/api/v1/employees/${id}/status`,
+    { status, reason }
+  );
+  return res.data.data;
+},
 };
