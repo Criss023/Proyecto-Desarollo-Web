@@ -13,6 +13,7 @@ import AlertsPage from './pages/AlertsPage';
 import CompliancePage from './pages/CompliancePage';
 import MyProfilePage from './pages/MyProfilePage';
 import MyDocumentsPage from './pages/MyDocumentsPage';
+import EmployeeRecordsPage from './pages/EmployeeRecordsPage';
 
 function App() {
   const { isAuthenticated, refreshSession, user } = useAuthStore();
@@ -137,6 +138,18 @@ function App() {
         <Route
           path="*"
           element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
+        />
+        <Route
+          path="/empleados/:employeeId/documentos"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <RoleGuard allowedRoles={['ADMIN', 'HR_MANAGER']}>
+                  <EmployeeRecordsPage />
+                </RoleGuard>
+              </MainLayout>
+            </ProtectedRoute>
+          }
         />
       </Routes>
     </BrowserRouter>
