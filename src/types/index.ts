@@ -49,3 +49,40 @@ export interface PaginatedResult<T> {
   items: T[];
   meta: PaginationMeta;
 }
+
+export interface DocumentType {
+  id: string;
+  name: string;
+  description?: string;
+  isRequired: boolean;
+  maxSizeMb: number;
+  allowedFormats: string[];   // ["PDF","JPEG","PNG","DOC","DOCX"]
+  validityDays?: number;      // null = no expira
+  isActive: boolean;
+}
+
+export interface EmployeeDocument {
+  id: string;
+  employeeId: string;
+  documentTypeId: string;
+  documentType: DocumentType;
+  fileName: string;
+  fileSizeBytes: number;
+  mimeType: string;
+  uploadedAt: string;
+  expiresAt?: string;
+  status: 'VALID' | 'EXPIRED' | 'EXPIRING_SOON';
+  uploadedBy: string;
+}
+
+export interface ExpedienteValidation {
+  employeeId: string;
+  totalRequired: number;
+  totalPresent: number;
+  totalMissing: number;
+  totalExpired: number;
+  totalExpiringSoon: number;
+  missingDocuments: DocumentType[];
+  expiredDocuments: EmployeeDocument[];
+  expiringSoonDocuments: EmployeeDocument[];
+}
