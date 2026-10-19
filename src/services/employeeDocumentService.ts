@@ -30,17 +30,35 @@ export interface RecordValidation {
     id: string;
     firstName: string;
     lastName: string;
-    employeeCode: string;
+    recordStatus: string;
   };
   isComplete: boolean;
+  totalRequired: number;
+  uploadedRequired: number;
+  missingRequired: number;
   requiredDocuments: {
-    documentTypeId: string;
-    documentTypeName: string;
-    isPresent: boolean;
-    isExpired: boolean;
+    documentType: {
+      id: string;
+      code: string;
+      name: string;
+      isRequired: boolean;
+      isActive: boolean;
+    };
+    uploaded: boolean;
+    documentId?: string;
+    originalName?: string;
+    uploadedAt?: string;
     expiresAt?: string;
   }[];
-  lastValidatedAt: string;
+  missingDocuments: {
+    documentType: {
+      id: string;
+      code: string;
+      name: string;
+    };
+    uploaded: boolean;
+  }[];
+  lastValidatedAt?: string;
 }
 
 const MAX_SIZE_BYTES = 2 * 1024 * 1024;
