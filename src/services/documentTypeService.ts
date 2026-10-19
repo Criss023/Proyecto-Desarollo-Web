@@ -7,6 +7,7 @@ export interface DocumentType {
   description?: string;
   isRequired: boolean;
   isActive: boolean;
+  requiresExpiration?: boolean;
 }
 
 export interface CreateDocumentTypeData {
