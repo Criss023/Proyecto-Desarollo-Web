@@ -43,21 +43,75 @@ export interface RecordValidation {
   lastValidatedAt: string;
 }
 
-const ALLOWED_MIME_TYPES = [
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+const MAX_SIZE_BYTES = 2 * 1024 * 1024;
+
+// Firmas de magic bytes por tipo real de archivo
+const MAGIC_SIGNATURES: { bytes: number[]; mask?: number[]; mime: string }[] = [
+  { bytes: [0x25, 0x50, 0x44, 0x46],                   mime: 'application/pdf' },        // %PDF
+  { bytes: [0xFF, 0xD8, 0xFF],                           mime: 'image/jpeg' },             // JPEG
+  { bytes: [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A], mime: 'image/png' },        // PNG
+  { bytes: [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1], mime: 'application/msword' }, // DOC (OLE2)
+  { bytes: [0x50, 0x4B, 0x03, 0x04],                    mime: 'application/zip' },         // ZIP → puede ser DOCX
 ];
 
-const MAX_SIZE_BYTES = 2 * 1024 * 1024;
+const ALLOWED_EXTENSIONS: Record<string, string[]> = {
+  '.pdf':  ['application/pdf'],
+  '.jpg':  ['image/jpeg'],
+  '.jpeg': ['image/jpeg'],
+  '.png':  ['image/png'],
+  '.doc':  ['application/msword'],
+  '.docx': ['application/zip'], // DOCX es un ZIP internamente
+};
+
+function readFileHeader(file: File, bytes: number): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(new Uint8Array(e.target!.result as ArrayBuffer));
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file.slice(0, bytes));
+  });
+}
+
+function detectMimeFromBytes(header: Uint8Array): string | null {
+  for (const sig of MAGIC_SIGNATURES) {
+    if (sig.bytes.every((b, i) => header[i] === b)) return sig.mime;
+  }
+  return null;
+}
 
 export function validateFileClient(file: File): string | null {
   if (file.size > MAX_SIZE_BYTES)
     return `El archivo excede 2 MB (tiene ${(file.size / 1024 / 1024).toFixed(1)} MB).`;
-  if (!ALLOWED_MIME_TYPES.includes(file.type))
-    return 'Tipo no permitido. Use PDF, JPEG, PNG, DOC o DOCX.';
+
+  const ext = ('.' + file.name.split('.').pop()!.toLowerCase()) as string;
+  if (!Object.keys(ALLOWED_EXTENSIONS).includes(ext))
+    return 'Extensión no permitida. Use PDF, JPEG, PNG, DOC o DOCX.';
+
+  // El tipo MIME del navegador también debe ser válido
+  const allowedMimes = Object.values(ALLOWED_EXTENSIONS).flat();
+  if (file.type && !allowedMimes.includes(file.type))
+    return 'Tipo de archivo no permitido. Use PDF, JPEG, PNG, DOC o DOCX.';
+
+  return null;
+}
+
+// Validación asíncrona con magic bytes (detecta extensión falsificada)
+export async function validateFileMagic(file: File): Promise<string | null> {
+  const ext = ('.' + file.name.split('.').pop()!.toLowerCase());
+  const expectedMimes = ALLOWED_EXTENSIONS[ext];
+  if (!expectedMimes) return 'Extensión no permitida.';
+
+  try {
+    const header = await readFileHeader(file, 8);
+    const detectedMime = detectMimeFromBytes(header);
+
+    if (!detectedMime) return 'No se pudo verificar el tipo real del archivo.';
+    if (!expectedMimes.includes(detectedMime)) {
+      return `El archivo no es realmente un ${ext.toUpperCase().slice(1)}. Parece ser otro tipo de archivo con la extensión cambiada.`;
+    }
+  } catch {
+    // Si falla la lectura, dejamos pasar (el servidor validará)
+  }
   return null;
 }
 
@@ -67,17 +121,11 @@ export const employeeDocumentService = {
     return res.data.data;
   },
 
-  upload: async (
-    employeeId: string,
-    file: File,
-    documentTypeId: string,
-    expiresAt?: string
-  ) => {
+  upload: async (employeeId: string, file: File, documentTypeId: string, expiresAt?: string) => {
     const form = new FormData();
     form.append('file', file);
     form.append('documentTypeId', documentTypeId);
     if (expiresAt) form.append('expiresAt', expiresAt);
-
     const res = await apiClient.post(
       `/api/v1/employees/${employeeId}/documents`,
       form,
@@ -98,28 +146,21 @@ export const employeeDocumentService = {
     const disposition: string = res.headers['content-disposition'] ?? '';
     const match = disposition.match(/filename[^;=\n]*=(['"]?)([^'"\n]*)\1/);
     const fileName = match?.[2] ?? fallbackFileName;
-
     const url = URL.createObjectURL(res.data as Blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
+    a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   },
 
   getValidation: async (employeeId: string) => {
-    const res = await apiClient.get(
-      `/api/v1/employees/${employeeId}/record-validation`
-    );
+    const res = await apiClient.get(`/api/v1/employees/${employeeId}/record-validation`);
     return res.data.data;
   },
 
   syncValidation: async (employeeId: string) => {
-    const res = await apiClient.post(
-      `/api/v1/employees/${employeeId}/record-validation/sync`
-    );
+    const res = await apiClient.post(`/api/v1/employees/${employeeId}/record-validation/sync`);
     return res.data.data;
   },
 };

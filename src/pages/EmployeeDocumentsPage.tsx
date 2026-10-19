@@ -2,11 +2,13 @@ import { useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
-import { employeeDocumentService, validateFileClient } from '../services/employeeDocumentService';
+import { employeeDocumentService, validateFileClient, validateFileMagic } from '../services/employeeDocumentService';
 import { employeeService } from '../services/employeeService';
 import { documentTypeService } from '../services/documentTypeService';
 import type { EmployeeDocument } from '../services/employeeDocumentService';
 import type { DocumentType } from '../services/documentTypeService';
+
+
 
 const UNIQUE_DOC_CODES = new Set(['CRIMINAL_RECORD', 'POLICE_RECORD', 'CONTRACT', 'DPI']);
 
@@ -107,11 +109,19 @@ function EmployeeDocumentsPage() {
     onSuccess: () => { refetchValidation(); },
   });
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     setSelectedFile(file);
-    if (file) setFileError(validateFileClient(file));
-    else setFileError(null);
+    if (!file) { setFileError(null); return; }
+
+    // Validación básica primero (tamaño y extensión)
+    const basicError = validateFileClient(file);
+    if (basicError) { setFileError(basicError); return; }
+
+    // Validación de magic bytes (detecta extensión falsificada)
+    setFileError('Verificando archivo...');
+    const magicError = await validateFileMagic(file);
+    setFileError(magicError);
   };
 
   const handleUpload = () => {
