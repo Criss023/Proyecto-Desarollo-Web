@@ -370,42 +370,24 @@ function EmployeeDocumentsPage() {
                         )}
                       </td>
                       <td className="px-5 py-3">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleDownload(doc)}
                             disabled={downloadingId === doc.id}
-                            className="text-primary-600 hover:text-primary-800 hover:underline text-sm font-medium focus:outline-none disabled:opacity-50"
+                            className="btn-primary text-xs py-1 px-2.5 disabled:opacity-50"
+                            aria-label={`Descargar ${doc.fileName}`}
                           >
                             {downloadingId === doc.id
                               ? "Descargando..."
                               : "Descargar"}
                           </button>
-                          {confirmDeleteId === doc.id ? (
-                            <span className="flex items-center gap-1 text-xs">
-                              <span className="text-red-600 font-medium">
-                                Confirmar?
-                              </span>
-                              <button
-                                onClick={() => deleteMutation.mutate(doc.id)}
-                                className="text-red-600 font-bold hover:underline focus:outline-none"
-                              >
-                                Si
-                              </button>
-                              <button
-                                onClick={() => setConfirmDeleteId(null)}
-                                className="text-slate-500 hover:underline focus:outline-none"
-                              >
-                                No
-                              </button>
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => setConfirmDeleteId(doc.id)}
-                              className="text-red-500 hover:text-red-700 hover:underline text-sm focus:outline-none"
-                            >
-                              Eliminar
-                            </button>
-                          )}
+                          <button
+                            onClick={() => setConfirmDeleteId(doc.id)}
+                            className="btn-danger text-xs py-1 px-2.5"
+                            aria-label={`Eliminar ${doc.fileName}`}
+                          >
+                            Eliminar
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -442,6 +424,65 @@ function EmployeeDocumentsPage() {
                 </li>
               ))}
           </ul>
+        </div>
+      )}
+
+      {/* Modal confirmar eliminación */}
+      {confirmDeleteId && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 z-40 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirmar eliminación"
+        >
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+            <div className="px-6 py-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <svg
+                    className="w-5 h-5 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-900">
+                    Eliminar documento
+                  </h3>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    Esta acción no se puede deshacer.
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 mt-3">
+                ¿Estás seguro que deseas eliminar este documento del expediente?
+              </p>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                disabled={deleteMutation.isPending}
+                className="btn-secondary"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => deleteMutation.mutate(confirmDeleteId)}
+                disabled={deleteMutation.isPending}
+                className="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 min-w-24"
+              >
+                {deleteMutation.isPending ? "Eliminando..." : "Sí, eliminar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
