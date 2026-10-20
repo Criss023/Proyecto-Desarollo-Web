@@ -148,8 +148,8 @@ function EmployeesPage() {
   }
 
   const filteredPositions = catalogs?.positions.filter(
-    p => !form.departmentId || p.departmentId === form.departmentId
-  ) ?? [];
+  p => !form.departmentId || p.departmentIds.includes(form.departmentId)
+) ?? [];
 
   const closeCreate = () => {
     setShowCreate(false);

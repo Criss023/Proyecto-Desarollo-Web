@@ -17,7 +17,7 @@ export interface Employee {
 
 export interface EmployeeCatalog {
   departments: { id: string; name: string }[];
-  positions: { id: string; name: string; departmentId: string }[];
+  positions: { id: string; code: string; name: string; departmentIds: string[] }[];
   branches: { id: string; name: string }[];
 }
 
