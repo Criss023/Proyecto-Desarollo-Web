@@ -29,6 +29,7 @@ function EmployeeDocumentsPage() {
   const [expiresAt, setExpiresAt] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [fileChecking, setFileChecking] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -157,21 +158,18 @@ function EmployeeDocumentsPage() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     setSelectedFile(file);
-    if (!file) {
-      setFileError(null);
-      return;
-    }
+    setFileError(null);
+    if (!file) return;
 
-    // Validación básica primero (tamaño y extensión)
     const basicError = validateFileClient(file);
     if (basicError) {
       setFileError(basicError);
       return;
     }
 
-    // Validación de magic bytes (detecta extensión falsificada)
-    setFileError("Verificando archivo...");
+    setFileChecking(true);
     const magicError = await validateFileMagic(file);
+    setFileChecking(false);
     setFileError(magicError);
   };
 
@@ -620,6 +618,30 @@ function EmployeeDocumentsPage() {
                   onChange={handleFileChange}
                   className="w-full text-sm text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
                 />
+                {fileChecking && (
+                  <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                    <svg
+                      className="animate-spin w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8z"
+                      />
+                    </svg>
+                    Verificando archivo...
+                  </p>
+                )}
                 {fileError && (
                   <p className="error-message mt-1" role="alert">
                     {fileError}
