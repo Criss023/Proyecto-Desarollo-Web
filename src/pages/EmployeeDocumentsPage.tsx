@@ -29,7 +29,9 @@ function EmployeeDocumentsPage() {
   const [expiresAt, setExpiresAt] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [fileChecking, setFileChecking] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [replaceConfirmed, setReplaceConfirmed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,8 +60,6 @@ function EmployeeDocumentsPage() {
     queryFn: () => employeeDocumentService.getValidation(employeeId!),
     enabled: queryEnabled,
   });
-
-  console.log("validation:", JSON.stringify(validation, null, 2));
 
   const { data: docTypesData } = useQuery({
     queryKey: ["document-types-all"],
@@ -92,6 +92,7 @@ function EmployeeDocumentsPage() {
     setShowUpload(false);
     setSelectedFile(null);
     setFileError(null);
+    setUploadError(null);
     setDocumentTypeId("");
     setExpiresAt("");
     setReplaceConfirmed(false);
@@ -118,7 +119,18 @@ function EmployeeDocumentsPage() {
       queryClient.invalidateQueries({
         queryKey: ["record-validation", employeeId],
       });
+      setUploadError(null);
       closeUpload();
+    },
+    onError: (err: {
+      response?: { data?: { message?: string | string[] } };
+    }) => {
+      const msg = err.response?.data?.message;
+      setUploadError(
+        Array.isArray(msg)
+          ? msg.join(". ")
+          : (msg ?? "Error al subir el documento. Intenta nuevamente."),
+      );
     },
   });
 
@@ -146,21 +158,18 @@ function EmployeeDocumentsPage() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     setSelectedFile(file);
-    if (!file) {
-      setFileError(null);
-      return;
-    }
+    setFileError(null);
+    if (!file) return;
 
-    // Validación básica primero (tamaño y extensión)
     const basicError = validateFileClient(file);
     if (basicError) {
       setFileError(basicError);
       return;
     }
 
-    // Validación de magic bytes (detecta extensión falsificada)
-    setFileError("Verificando archivo...");
+    setFileChecking(true);
     const magicError = await validateFileMagic(file);
+    setFileChecking(false);
     setFileError(magicError);
   };
 
@@ -518,14 +527,12 @@ function EmployeeDocumentsPage() {
             </div>
 
             <div className="p-6 space-y-4">
-              {uploadMutation.isError && (
+              {uploadError && (
                 <div
                   className="card p-3 border-l-4 border-red-400"
                   role="alert"
                 >
-                  <p className="text-sm text-red-700">
-                    Error al subir el documento. Intenta nuevamente.
-                  </p>
+                  <p className="text-sm text-red-700">{uploadError}</p>
                 </div>
               )}
 
@@ -611,6 +618,30 @@ function EmployeeDocumentsPage() {
                   onChange={handleFileChange}
                   className="w-full text-sm text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
                 />
+                {fileChecking && (
+                  <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                    <svg
+                      className="animate-spin w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8z"
+                      />
+                    </svg>
+                    Verificando archivo...
+                  </p>
+                )}
                 {fileError && (
                   <p className="error-message mt-1" role="alert">
                     {fileError}
