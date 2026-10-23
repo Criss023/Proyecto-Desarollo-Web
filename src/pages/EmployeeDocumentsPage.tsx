@@ -30,6 +30,7 @@ function EmployeeDocumentsPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [replaceConfirmed, setReplaceConfirmed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -90,6 +91,7 @@ function EmployeeDocumentsPage() {
     setShowUpload(false);
     setSelectedFile(null);
     setFileError(null);
+    setUploadError(null);
     setDocumentTypeId("");
     setExpiresAt("");
     setReplaceConfirmed(false);
@@ -116,7 +118,18 @@ function EmployeeDocumentsPage() {
       queryClient.invalidateQueries({
         queryKey: ["record-validation", employeeId],
       });
+      setUploadError(null);
       closeUpload();
+    },
+    onError: (err: {
+      response?: { data?: { message?: string | string[] } };
+    }) => {
+      const msg = err.response?.data?.message;
+      setUploadError(
+        Array.isArray(msg)
+          ? msg.join(". ")
+          : (msg ?? "Error al subir el documento. Intenta nuevamente."),
+      );
     },
   });
 
@@ -516,14 +529,12 @@ function EmployeeDocumentsPage() {
             </div>
 
             <div className="p-6 space-y-4">
-              {uploadMutation.isError && (
+              {uploadError && (
                 <div
                   className="card p-3 border-l-4 border-red-400"
                   role="alert"
                 >
-                  <p className="text-sm text-red-700">
-                    Error al subir el documento. Intenta nuevamente.
-                  </p>
+                  <p className="text-sm text-red-700">{uploadError}</p>
                 </div>
               )}
 
