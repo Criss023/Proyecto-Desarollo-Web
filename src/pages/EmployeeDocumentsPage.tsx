@@ -570,13 +570,11 @@ function EmployeeDocumentsPage() {
                   </p>
                   <p className="text-xs text-yellow-700 mb-2">
                     Ya existe un{" "}
-                    <strong>{existingDoc.documentType.name}</strong> registrado
-                    ({existingDoc.fileName}, subido el{" "}
+                    <strong>{existingDoc.documentType.name}</strong> subido el{" "}
                     {new Date(existingDoc.uploadedAt).toLocaleDateString(
                       "es-GT",
-                    )}
-                    ). Si continúas, el archivo anterior será eliminado y
-                    reemplazado por el nuevo.
+                    )}. 
+                    Si continúas, será reemplazado por el nuevo archivo.
                   </p>
                   {!replaceConfirmed ? (
                     <div className="flex gap-2">
