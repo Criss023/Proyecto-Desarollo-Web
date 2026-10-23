@@ -59,8 +59,6 @@ function EmployeeDocumentsPage() {
     enabled: queryEnabled,
   });
 
-  console.log("validation:", JSON.stringify(validation, null, 2));
-
   const { data: docTypesData } = useQuery({
     queryKey: ["document-types-all"],
     queryFn: () => documentTypeService.list(),
