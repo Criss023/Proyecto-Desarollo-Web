@@ -221,11 +221,14 @@ function EmployeesPage() {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       closeCreate();
     },
-    onError: (err: { response?: { data?: { message?: string } } }) => {
-      setFormError(
-        err.response?.data?.message ??
-          "Error al crear el empleado. Intenta nuevamente.",
-      );
+    onError: (err: {
+      response?: { data?: { message?: string | string[] } };
+    }) => {
+      const msg = err.response?.data?.message;
+      const text = Array.isArray(msg)
+        ? msg.join(". ")
+        : (msg ?? "Error al crear el empleado. Intenta nuevamente.");
+      setFormError(text);
     },
   });
 
