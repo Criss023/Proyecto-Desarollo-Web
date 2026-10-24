@@ -95,10 +95,3 @@ npm run preview
 ## Enlace publicado
 
 > https://proyecto-desarollo-web.vercel.app
-
----
-
-## Instancia API asignada
-
-Grupo g03 - Expediente Digital  
-Swagger: https://api-g03-39462701205.us-central1.run.app/api/docs
