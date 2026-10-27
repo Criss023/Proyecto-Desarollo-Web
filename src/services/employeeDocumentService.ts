@@ -201,54 +201,91 @@ export const employeeDocumentService = {
 export async function validateFileBlank(file: File): Promise<string | null> {
   const type = file.type;
 
-  // PDF: leer como texto y buscar contenido
+  // PDF: leer como ArrayBuffer y buscar streams de contenido
   if (type === 'application/pdf') {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        const text = e.target?.result as string;
-        const hasText   = /BT[\s\S]*?ET/.test(text);
-        const hasImages = /\/Image\b/.test(text);
-        const hasXobj   = /\/XObject\b/.test(text);
+        const buf = e.target?.result as ArrayBuffer;
+        const bytes = new Uint8Array(buf);
+        // Convertir a string buscando solo los marcadores clave
+        let text = '';
+        for (let i = 0; i < bytes.length; i++) {
+          text += String.fromCharCode(bytes[i]);
+        }
+        // BT...ET = bloque de texto, /Image = imagen embebida
+        const hasText   = text.includes('BT') && text.includes('ET');
+        const hasImages = text.includes('/Image');
+        const hasXobj   = text.includes('/XObject');
         resolve(hasText || hasImages || hasXobj
           ? null
           : 'El PDF no tiene contenido visible (está en blanco).');
       };
-      reader.readAsText(file, 'latin1');
+      reader.readAsArrayBuffer(file);
     });
   }
 
-  // JPEG / PNG: si pasaron magic bytes, tienen datos de imagen reales
+  // JPEG / PNG: crear un canvas y verificar si todos los píxeles son iguales
   if (type === 'image/jpeg' || type === 'image/png') {
-    return null;
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        // Escalar a 50x50 para que sea rápido
+        canvas.width  = 50;
+        canvas.height = 50;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { URL.revokeObjectURL(url); resolve(null); return; }
+        ctx.drawImage(img, 0, 0, 50, 50);
+        const data = ctx.getImageData(0, 0, 50, 50).data; // RGBA
+        const firstR = data[0], firstG = data[1], firstB = data[2];
+        let isBlank = true;
+        // Permitir variación de ±10 para evitar falsos positivos por compresión JPEG
+        for (let i = 0; i < data.length; i += 4) {
+          if (
+            Math.abs(data[i]   - firstR) > 10 ||
+            Math.abs(data[i+1] - firstG) > 10 ||
+            Math.abs(data[i+2] - firstB) > 10
+          ) {
+            isBlank = false;
+            break;
+          }
+        }
+        URL.revokeObjectURL(url);
+        resolve(isBlank
+          ? 'La imagen no tiene contenido visible (está en blanco).'
+          : null);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    });
   }
 
-  // DOCX: descomprimir ZIP y leer word/document.xml
+  // DOCX
   if (type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
     try {
       const buffer = await file.arrayBuffer();
       const zip = await unzipFile(buffer);
       const xmlText = zip['word/document.xml'];
-      if (!xmlText) return null; // no se pudo leer, dejar pasar
-      // Extraer texto de los tags <w:t>
+      if (!xmlText) return null;
       const matches = xmlText.match(/<w:t[^>]*>([^<]+)<\/w:t>/g) ?? [];
       const text = matches.map(m => m.replace(/<[^>]+>/g, '')).join('').trim();
       return text.length > 0
         ? null
         : 'El documento Word no tiene contenido de texto (está en blanco).';
     } catch {
-      return null; // si falla la lectura, dejar pasar
+      return null;
     }
   }
 
-  // DOC (formato binario antiguo): buscar marcadores de texto
+  // DOC
   if (type === 'application/msword') {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const buf = e.target?.result as ArrayBuffer;
         const bytes = new Uint8Array(buf);
-        // Buscar secuencias de caracteres ASCII imprimibles (texto real)
         let printableRun = 0;
         for (let i = 0; i < bytes.length; i++) {
           const b = bytes[i];
