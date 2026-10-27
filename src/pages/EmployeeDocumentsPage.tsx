@@ -6,6 +6,7 @@ import {
   employeeDocumentService,
   validateFileClient,
   validateFileMagic,
+  validateFileBlank,
 } from "../services/employeeDocumentService";
 import { employeeService } from "../services/employeeService";
 import { documentTypeService } from "../services/documentTypeService";
@@ -156,22 +157,22 @@ function EmployeeDocumentsPage() {
   });
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
-    setSelectedFile(file);
-    setFileError(null);
-    if (!file) return;
+  const file = e.target.files?.[0] ?? null;
+  setSelectedFile(file);
+  setFileError(null);
+  if (!file) return;
 
-    const basicError = validateFileClient(file);
-    if (basicError) {
-      setFileError(basicError);
-      return;
-    }
+  const basicError = validateFileClient(file);
+  if (basicError) { setFileError(basicError); return; }
 
-    setFileChecking(true);
-    const magicError = await validateFileMagic(file);
-    setFileChecking(false);
-    setFileError(magicError);
-  };
+  setFileChecking(true);
+  const magicError = await validateFileMagic(file);
+  if (magicError) { setFileChecking(false); setFileError(magicError); return; }
+
+  const blankError = await validateFileBlank(file);
+  setFileChecking(false);
+  setFileError(blankError);
+};
 
   const handleUpload = () => {
     if (!selectedFile || !documentTypeId || fileError) return;

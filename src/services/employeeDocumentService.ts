@@ -196,4 +196,131 @@ export const employeeDocumentService = {
     );
     return res.data.data;
   },
+}
+
+export async function validateFileBlank(file: File): Promise<string | null> {
+  const type = file.type;
+
+  // PDF: leer como texto y buscar contenido
+  if (type === 'application/pdf') {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        const hasText   = /BT[\s\S]*?ET/.test(text);
+        const hasImages = /\/Image\b/.test(text);
+        const hasXobj   = /\/XObject\b/.test(text);
+        resolve(hasText || hasImages || hasXobj
+          ? null
+          : 'El PDF no tiene contenido visible (está en blanco).');
+      };
+      reader.readAsText(file, 'latin1');
+    });
+  }
+
+  // JPEG / PNG: si pasaron magic bytes, tienen datos de imagen reales
+  if (type === 'image/jpeg' || type === 'image/png') {
+    return null;
+  }
+
+  // DOCX: descomprimir ZIP y leer word/document.xml
+  if (type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    try {
+      const buffer = await file.arrayBuffer();
+      const zip = await unzipFile(buffer);
+      const xmlText = zip['word/document.xml'];
+      if (!xmlText) return null; // no se pudo leer, dejar pasar
+      // Extraer texto de los tags <w:t>
+      const matches = xmlText.match(/<w:t[^>]*>([^<]+)<\/w:t>/g) ?? [];
+      const text = matches.map(m => m.replace(/<[^>]+>/g, '')).join('').trim();
+      return text.length > 0
+        ? null
+        : 'El documento Word no tiene contenido de texto (está en blanco).';
+    } catch {
+      return null; // si falla la lectura, dejar pasar
+    }
+  }
+
+  // DOC (formato binario antiguo): buscar marcadores de texto
+  if (type === 'application/msword') {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const buf = e.target?.result as ArrayBuffer;
+        const bytes = new Uint8Array(buf);
+        // Buscar secuencias de caracteres ASCII imprimibles (texto real)
+        let printableRun = 0;
+        for (let i = 0; i < bytes.length; i++) {
+          const b = bytes[i];
+          if (b >= 32 && b <= 126) {
+            printableRun++;
+            if (printableRun > 20) { resolve(null); return; }
+          } else {
+            printableRun = 0;
+          }
+        }
+        resolve('El documento no tiene contenido de texto (está en blanco).');
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  return null;
+}
+
+// Helper: descomprime un ZIP y devuelve sus archivos como strings
+async function unzipFile(buffer: ArrayBuffer): Promise<Record<string, string>> {
+  const result: Record<string, string> = {};
+  const bytes = new Uint8Array(buffer);
+
+  // Buscar entradas del ZIP (signature 0x504B0304)
+  let i = 0;
+  while (i < bytes.length - 4) {
+    if (bytes[i] === 0x50 && bytes[i+1] === 0x4B &&
+        bytes[i+2] === 0x03 && bytes[i+3] === 0x04) {
+
+      const compression = bytes[i+8] | (bytes[i+9] << 8);
+      const compressedSize   = bytes[i+18] | (bytes[i+19] << 8) | (bytes[i+20] << 16) | (bytes[i+21] << 24);
+      const fileNameLength   = bytes[i+26] | (bytes[i+27] << 8);
+      const extraFieldLength = bytes[i+28] | (bytes[i+29] << 8);
+      const fileNameBytes    = bytes.slice(i+30, i+30+fileNameLength);
+      const fileName         = new TextDecoder().decode(fileNameBytes);
+      const dataStart        = i + 30 + fileNameLength + extraFieldLength;
+      const compressedData   = bytes.slice(dataStart, dataStart + compressedSize);
+
+      if (fileName === 'word/document.xml') {
+        if (compression === 0) {
+          // Sin compresión
+          result[fileName] = new TextDecoder().decode(compressedData);
+        } else if (compression === 8) {
+          // Deflate
+          try {
+            const ds = new DecompressionStream('deflate-raw');
+            const writer = ds.writable.getWriter();
+            const reader2 = ds.readable.getReader();
+            writer.write(compressedData);
+            writer.close();
+            const chunks: Uint8Array[] = [];
+            let done = false;
+            while (!done) {
+              const { value, done: d } = await reader2.read();
+              if (value) chunks.push(value);
+              done = d;
+            }
+            const total = chunks.reduce((a, c) => a + c.length, 0);
+            const merged = new Uint8Array(total);
+            let offset = 0;
+            for (const chunk of chunks) { merged.set(chunk, offset); offset += chunk.length; }
+            result[fileName] = new TextDecoder().decode(merged);
+          } catch { /* dejar pasar */ }
+        }
+        break; // ya encontramos lo que necesitamos
+      }
+
+      i = dataStart + compressedSize;
+    } else {
+      i++;
+    }
+  }
+  return result;
 };
