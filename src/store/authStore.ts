@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { apiClient } from '../services/apiClient';
 import { authService } from '../services/authService';
 import type { AuthUser, LoginCredentials } from '../types';
@@ -88,13 +88,14 @@ export const useAuthStore = create<AuthState>()(
 
       clearError: () => set({ error: null }),
     }),
-    {
-      name: 'auth-storage',
-      partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-      }),
-    }
+   {
+  name: 'auth-storage',
+  storage: createJSONStorage(() => sessionStorage),
+  partialize: (state) => ({
+    user: state.user,
+    isAuthenticated: state.isAuthenticated,
+  }),
+}
   )
 );
 
